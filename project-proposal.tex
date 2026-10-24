@@ -1,0 +1,24 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+
+\begin{document}
+
+\begin{center}
+{\large\bfseries CEE292 Project Proposal: Improved PINNs for Option Pricing}\\[2pt]
+Sondre Rogde
+\end{center}
+
+\textbf{Contribution:} We implement the paper Y. Bai, T. Chaolu, S. Bilige, ``The application of improved physics-informed neural network (IPINN) method in finance,'' \emph{Nonlinear Dynamics}, 2022 in code.
+We implement both the standard PINN and their proposed improved PINN (IPINN).
+
+\textbf{Data and benchmark:} No market data is needed. 
+Training data consist of collocation, initial and boundary points sampled from the Black-Scholes and Ivancevic PDEs.
+We evaluate on a test grid against the closed-form Black-Scholes price and the analytic Ivancevic solution.
+We use relative $L^2$ error and maximum absolute error. 
+We do this over 5 seeds and report mean $\pm$ standard deviation.
+
+\end{document}
