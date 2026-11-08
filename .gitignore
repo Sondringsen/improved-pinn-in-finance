@@ -1,0 +1,18 @@
+# generated data
+data/*/
+
+# Don't push the paper, it's copyrighted.
+improved-pinn-in-finance.pdf
+
+__pycache__/
+.DS_Store
+
+# LaTeX build files
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
