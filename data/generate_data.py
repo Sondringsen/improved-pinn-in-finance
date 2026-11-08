@@ -17,9 +17,9 @@ SEEDS = range(5)
 
 # Setups from Sect. 3 of the paper.  N_u = n_ic + 2 n_bc supervised points, n_f collocation points.
 PROBLEMS = {
-    "black_scholes": dict(  # Sect. 3.3: European call, N_V = 200, N_f = 10 000
+    "black_scholes": dict(  # Sect. 3.3: European call, N_V = 200; N_f = 2000 as for the paper's put (call: 10 000)
         params=dict(K=10.0, r=0.1, sigma=0.05, option="call"),
-        x=[0.0, 20.0], t=[0.0, 1.0], n_ic=100, n_bc=50, n_f=10000, nx_test=201, nt_test=101),
+        x=[0.0, 20.0], t=[0.0, 1.0], n_ic=100, n_bc=50, n_f=2000, nx_test=201, nt_test=101),
     "ivancevic_soliton": dict(  # Sect. 3.2: psi = 2 sech(2S + 8t) exp(i(1 - 2S)), N_psi = 100, N_f = 2000
         params=dict(sigma=2.0, beta=2.0, a=2.0, k=-2.0, phi0=1.0),
         x=[-5.0, 5.0], t=[-0.5, 0.5], n_ic=50, n_bc=25, n_f=2000, nx_test=512, nt_test=501),
