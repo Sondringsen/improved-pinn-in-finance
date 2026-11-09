@@ -23,15 +23,15 @@
 
 Bai, Chaolu and Bilige \cite{bai2022} apply physics-informed neural networks (PINNs, \cite{raissi2019})
 to two option-pricing PDEs, the nonlinear Ivancevic equation and the Black--Scholes equation, and
-propose an ``improved PINN'' (IPINN) that adds the neuron-wise locally adaptive activation functions
-with slope recovery of Jagtap et al.\ \cite{jagtap2020}. They claim that their proposed IPINN converges faster 
-and with slightly better accuracy than the plain PINN on a financial rogue wave, a soliton, and a European call.
+propose an ``improved PINN'' (IPINN) that adds a neuron-wise locally adaptive activation functions
+with slope recovery proposed in Jagtap et al.\ \cite{jagtap2020}. The authors claim that their IPINN model converges faster
+and is slightly more accurate than the plain PINN on a financial rogue wave, a soliton, and a European call.
 
-This project implements both the PINN and the IPINN in PyTorch and runs the same three experiments of the paper
-with 5 random seeds each. The main result is negative: the IPINN loss as written in the paper is
-unbounded below in the activation slopes, and the L-BFGS phase of training exploits this, saturating
-the network. With the slope-recovery term removed, the adaptive activations train fine but are not
-better than the plain PINN on these problems. Code and results: \url{https://github.com/REPO-LINK}.
+This project implements both the PINN and the IPINN in PyTorch and runs the same three experiments as the paper
+with 5 random seeds each. We reproduce the paper's PINN results, but we are not able to reproduce the improvement it reports for
+the IPINN. Using the loss as written in the paper, the slope-recovery term takes over training and the
+IPINN diverges. Excluding the extra term fixes this, but are still not better than the plain
+PINN on these problems. Code and results: \url{https://github.com/REPO-LINK}.
 
 \section{Methods}
 
@@ -44,12 +44,12 @@ It is trained on the usual PINN loss we have seen in class:
   \mathcal{L}_{\text{data}} = \frac{1}{N_{\text{data}}}\sum_{i} \big|\hat u_\theta(S_i,t_i) - u_i\big|^2, \quad
   \mathcal{L}_{\text{physics}} = \frac{1}{N_{\text{colloc}}}\sum_{j} \big|\mathcal{R}_\theta(S_j,t_j)\big|^2,
 \end{equation}
-where the data points lie on the initial and boundary lines, the collocation points are Latin-hypercube
-samples of the domain, and the residual $\mathcal{R}_\theta$ is the PDE evaluated on $\hat u_\theta$ with
+where the data points lie on the initial and boundary lines, the collocation points are random points spread
+evenly over the domain, and the residual $\mathcal{R}_\theta$ is the PDE evaluated on $\hat u_\theta$ with
 automatic differentiation. Training is Adam followed by L-BFGS.
 
 The IPINN keeps this loss but replaces every hidden activation by $\tanh(n\,a\,z)$ with one trainable
-slope $a$ per neuron ($n=10$, $a=0.1$ at initialisation, i.e.\ a plain tanh network at the start) and adds
+slope $a$ per neuron ($n=10$, $a=0.1$ at initialization, i.e.\ a plain tanh network at the start) and adds
 the slope-recovery term of \cite{jagtap2020},
 \begin{equation}
   \mathcal{L}_{\text{IPINN}} = \mathcal{L}_{\text{total}} + S(a), \qquad
@@ -57,8 +57,9 @@ the slope-recovery term of \cite{jagtap2020},
   \label{eq:sr}
 \end{equation}
 which is meant to push the slopes up and speed up training. Because this term turned out to break
-training (Section~\ref{sec:results}), a third variant with adaptive slopes but without $S(a)$ is also
-run, labelled ``IPINN w/o slope recovery''.
+training (Section~\ref{sec:results}), we also run a third variant that the paper does not include where we
+remove the adaptive slopes term $S(a)$. It differs from the PINN only by
+the trainable slopes.
 
 \subsection{Problems}
 
@@ -76,8 +77,8 @@ which are used for the training data and the test errors.
 
 Network sizes (8 hidden layers of 40 units for Ivancevic, 50 for Black--Scholes), the number of data
 points ($N_{\text{data}} = 100$ and $200$) and the collocation points of the Ivancevic problems follow the
-paper. Table~\ref{tab:setup} lists where we deviate. The reductions were made so that all 45 runs fit in
-about two hours on a laptop (Apple M2); . I also did a check with 5000 Adam steps on one see which did not
+paper. Table~\ref{tab:setup} lists where we deviate. The reductions were made so that all 45 runs complete in
+reasonable time on a laptop (Apple M2). I also did a check with 5000 Adam steps on one seed which did not
 change the results significantly. Errors are the relative $L^2$ error and the maximum absolute error on a
 dense grid, reported as mean $\pm$ std over the 5 seeds. The seed changes both the sampled points and
 the initialization.
@@ -117,21 +118,22 @@ The Black--Scholes error is an order of magnitude below their $8.2\times10^{-3}$
 data is exact, while they used a finite difference solution. The soliton error is an order of magnitude above
 their $2.6\times10^{-3}$, which might be due to the smaller training budget. 
 
-The IPINN as written, however,
-diverges on both Ivancevic problems and is ten times worse than PINN on Black--Scholes, on every seed.
-Figure~\ref{fig:loss} shows that $S(a)$ in Eq.~\eqref{eq:sr} has no lower bound except $0$ at
-$a\to\infty$ and is still about $0.8$ after the Adam phase, far above the PDE loss, so L-BFGS lowers the
-total loss by inflating the slopes instead of fitting the PDE. The mean effective slope $na$ grows from $1$
-to $5$--$19$, single neurons reach $56$, the tanh units saturate and the network collapses to a nearly
-constant function. Without $S(a)$ the slopes stay near $1$ and the adaptive network trains like the plain
-PINN, slightly better on Black--Scholes and somewhat worse on the Ivancevic problems.
+The IPINN as written, however, diverges on both Ivancevic problems and is ten times worse than the PINN
+on Black--Scholes, on every seed. The cause is the slope-recovery term itself. $S(a)$ in Eq.~\eqref{eq:sr}
+decreases toward $0$ as the slopes grow, so the optimizer can always lower it by making the slopes larger,
+and nothing in the loss stops this. After the Adam phase $S(a)$ is still about $0.8$ while the data and
+physics losses are between $10^{-4}$ and $10^{-2}$, so $S(a)$ dominates the total loss and L-BFGS tries to fix this.
+It does this by increasing the $a$ making the slopes steeper. This makes the network become nearly constant as it is stuck at -1 or 1 almost everywhere.
+Figure~\ref{fig:loss} shows this. The data-and-physics part of the loss (plotted without
+$S(a)$) follows the PINN during Adam but rises as soon as L-BFGS starts. Without $S(a)$ the slopes stay
+near $1$ and the adaptive network trains like the plain PINN.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.85\textwidth]{loss.png}
-  \caption{PDE-and-data part of the loss (without $S(a)$) during training for seed 0. The dotted line
-  marks the switch from Adam to L-BFGS. For the paper's IPINN the loss rises during L-BFGS while the
-  optimizer lowers $S(a)$ by inflating the slopes.}
+  \caption{Data-and-physics part of the loss, $\mathcal{L}_{\text{total}}$ without $S(a)$, during
+  training for seed 0. The dotted line marks the switch from Adam to L-BFGS. For the paper's IPINN this
+  part rises during L-BFGS because the optimizer lowers $S(a)$ by inflating the slopes instead.}
   \label{fig:loss}
 \end{figure}
 
@@ -141,7 +143,7 @@ The plain PINN from the paper was straightforward to reproduce and works on all 
 much smaller training budget than the paper used. The improved version did not work for us. It seems like the extra
 loss term rewards ever larger activation slopes. The paper does not
 report the learned slopes or any bound on the term, so it is hard to tell how its runs avoided this. It might be avoided
-by weighing the slope-recovery term differently.
+by weighting the slope-recovery term differently.
 More plots and results can be found in the GitHub repo.
 
 \footnotesize
